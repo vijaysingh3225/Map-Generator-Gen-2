@@ -11,11 +11,22 @@
 [Rr]ecordings/
 
 # ========================
+# WorldGen debug output
+# ========================
+WorldGenOutput/
+
+# ========================
+# Unity per-user settings
+# ========================
+UserSettings/
+
+# ========================
 # IDE / Editor files
 # ========================
 .vs/
 .vscode/
 .idea/
+.vsconfig
 *.csproj
 *.sln
 *.user
@@ -31,8 +42,3 @@
 .DS_Store
 Thumbs.db
 Desktop.ini
-
-# ========================
-# Unity meta files (keep!)
-# ========================
-!*.meta
