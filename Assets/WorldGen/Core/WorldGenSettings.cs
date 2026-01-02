@@ -42,8 +42,11 @@ namespace WorldGen.Core
         public float majorMassEdgeFalloff = 20f;
         public int massPlacementMaxTries = 64;
         public float massMinSeparation = 90f; // world units (XZ plane)
+        public float overlapAllowedPercent = 0.15f; // 0 = strict separation, 0.2 allows 20% overlap vs min separation
+        public float edgeBias = 0f; // must remain 0 for uniform sampling; reserved for future shaping
 
         [Header("Terraces / Shelves")]
+        public bool enableTerraces = true;
         public int terraceBands = 6;
         public float terraceStrength = 10f;
         public float terraceNoiseFreq = 0.01f;
@@ -62,6 +65,9 @@ namespace WorldGen.Core
         public float floatingIslandDensityBoost = 25f;
 
         public int composeSeedOffset = 9001;
+
+        [Header("Debug - Top-Down Maps")]
+        public bool exportTopDownMaps = true;
 
         [Header("Debug Output")]
         [Tooltip("Created under the project root (next to Assets) when running in the editor.")]

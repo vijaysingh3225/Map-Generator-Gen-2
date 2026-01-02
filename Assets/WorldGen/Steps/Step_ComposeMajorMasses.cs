@@ -45,7 +45,14 @@ namespace WorldGen.Steps
                 return;
             }
 
-            var rng = new System.Random(unchecked(ctx.seed + settings.composeSeedOffset));
+            // Milestone 4: derive this step's RNG from ctx.rng (seeded from settings.seed) and mix in composeSeedOffset.
+            // This remains deterministic for a given pipeline order and avoids UnityEngine.Random.
+            var derivedSeed = unchecked(ctx.rng.Next() + settings.composeSeedOffset);
+            var rng = new System.Random(derivedSeed);
+            if (Mathf.Abs(settings.edgeBias) > 1e-6f)
+            {
+                DebugLog.Warn(ctx, $"ComposeMajorMasses: edgeBias is {settings.edgeBias:0.###} but placement sampling is kept uniform (edgeBias is ignored).");
+            }
 
             var vs = ctx.density.voxelSize;
             var maxX = (ctx.density.sizeX - 1) * vs;
@@ -55,7 +62,8 @@ namespace WorldGen.Steps
             if (settings.exportBeforeAfterSlices)
             {
                 DebugSlices.EnsureDensityStats(ctx);
-                DebugSlices.ExportDensitySlices(ctx, "m3_before_");
+                DebugSlices.ExportDensitySlices(ctx, "before_compose_");
+                DebugTopDown.ExportSurfaceAndOccupancy(ctx, "before_compose_");
             }
 
             // Deterministic offsets for terrace noise.
@@ -64,14 +72,16 @@ namespace WorldGen.Steps
 
             // Place major masses with rejection sampling in XZ.
             var masses = PlaceMajorMasses(settings, rng, maxX, maxY, maxZ);
+            ComputeOverlapStats(masses, out var overlapPairs, out var minCenterDist);
 
             // Overhang undercuts (void spheres only below a cutoff height).
             var overhangs = PlaceOverhangs(settings, rng, maxX, maxY, maxZ);
 
             // Floating islands (solid boosts).
-            var islands = PlaceIslands(settings, rng, maxX, maxY, maxZ);
+            var islands = PlaceIslands(settings, rng, maxX, maxY, maxZ, masses);
+            ComputeIslandStats(islands, out var islandMinCenterDist);
 
-            LogPlacement(ctx, settings, masses, overhangs, islands);
+            LogPlacement(ctx, settings, masses, overhangs, islands, overlapPairs, minCenterDist, islandMinCenterDist, derivedSeed);
 
             // One voxel pass to apply: masses add + terraces + overhang voids + islands add.
             const float eps = 1e-6f;
@@ -79,7 +89,7 @@ namespace WorldGen.Steps
 
             var terraceBands = Mathf.Max(1, settings.terraceBands);
             var bandHeight = (maxY <= 0f) ? 1f : (maxY / terraceBands);
-            var terraceStrength = settings.terraceStrength;
+            var terraceStrength = settings.enableTerraces ? settings.terraceStrength : 0f;
             var terraceFreq = Mathf.Max(0f, settings.terraceNoiseFreq);
             var terraceAmp = settings.terraceNoiseAmp;
 
@@ -181,7 +191,8 @@ namespace WorldGen.Steps
 
             if (settings.exportBeforeAfterSlices)
             {
-                DebugSlices.ExportDensitySlices(ctx, "m3_after_");
+                DebugSlices.ExportDensitySlices(ctx, "after_compose_");
+                DebugTopDown.ExportSurfaceAndOccupancy(ctx, "after_compose_");
             }
 
             ctx.pendingStepCounters = new Dictionary<string, int>
@@ -203,7 +214,9 @@ namespace WorldGen.Steps
 
             var tries = Mathf.Max(1, s.massPlacementMaxTries);
             var minSep = Mathf.Max(0f, s.massMinSeparation);
-            var minSep2 = minSep * minSep;
+            var overlap = Mathf.Clamp01(s.overlapAllowedPercent);
+            var requiredSep = minSep * (1f - overlap);
+            var requiredSep2 = requiredSep * requiredSep;
 
             var list = new List<MajorMass>(targetCount);
 
@@ -219,7 +232,7 @@ namespace WorldGen.Steps
                     var c = list[i].center;
                     var dx = cx - c.x;
                     var dz = cz - c.z;
-                    if (dx * dx + dz * dz < minSep2)
+                    if (dx * dx + dz * dz < requiredSep2)
                     {
                         ok = false;
                         break;
@@ -276,12 +289,20 @@ namespace WorldGen.Steps
             return list;
         }
 
-        private static FloatingIsland[] PlaceIslands(WorldGenSettings s, System.Random rng, float maxX, float maxY, float maxZ)
+        private static FloatingIsland[] PlaceIslands(WorldGenSettings s, System.Random rng, float maxX, float maxY, float maxZ, MajorMass[] masses)
         {
             var count = Mathf.Max(0, s.floatingIslandCount);
-            var list = new FloatingIsland[count];
+            var list = new List<FloatingIsland>(count);
 
-            for (int i = 0; i < count; i++)
+            // Keep islands from clustering too tightly: use a derived separation based on the major mass separation.
+            var baseSep = Mathf.Max(0f, s.massMinSeparation);
+            var overlap = Mathf.Clamp01(s.overlapAllowedPercent);
+            var massRequiredSep = baseSep * (1f - overlap);
+            var islandMinSep = Mathf.Clamp(massRequiredSep * 0.5f, 10f, 60f);
+            var islandMinSep2 = islandMinSep * islandMinSep;
+            var tries = Mathf.Max(1, s.massPlacementMaxTries);
+
+            for (int attempt = 0; attempt < tries && list.Count < count; attempt++)
             {
                 var radius = RandRange(rng, s.floatingIslandRadiusRange.x, s.floatingIslandRadiusRange.y);
                 radius = Mathf.Max(1f, radius);
@@ -291,20 +312,59 @@ namespace WorldGen.Steps
                 var cy = RandRange(rng, s.floatingIslandHeightRange.x, s.floatingIslandHeightRange.y);
                 cy = Mathf.Clamp(cy, 0f, maxY);
 
-                list[i] = new FloatingIsland
+                var ok = true;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var c = list[i].center;
+                    var dx = cx - c.x;
+                    var dz = cz - c.z;
+                    if (dx * dx + dz * dz < islandMinSep2) { ok = false; break; }
+                }
+
+                // Also avoid dropping all islands directly on top of a single major mass center.
+                if (ok && masses != null && masses.Length > 0)
+                {
+                    // Require at least a small offset from the nearest mass center (purely for distribution).
+                    var avoid2 = 25f * 25f;
+                    for (int i = 0; i < masses.Length; i++)
+                    {
+                        var mc = masses[i].center;
+                        var dx = cx - mc.x;
+                        var dz = cz - mc.z;
+                        if (dx * dx + dz * dz < avoid2) { ok = false; break; }
+                    }
+                }
+
+                if (!ok) continue;
+
+                list.Add(new FloatingIsland
                 {
                     center = new Vector3(cx, cy, cz),
                     radius = radius,
                     boost = s.floatingIslandDensityBoost,
-                };
+                });
             }
 
-            return list;
+            return list.ToArray();
         }
 
-        private static void LogPlacement(WorldContext ctx, WorldGenSettings s, MajorMass[] masses, Overhang[] overhangs, FloatingIsland[] islands)
+        private static void LogPlacement(
+            WorldContext ctx,
+            WorldGenSettings s,
+            MajorMass[] masses,
+            Overhang[] overhangs,
+            FloatingIsland[] islands,
+            int overlapPairs,
+            float minCenterDist,
+            float islandMinCenterDist,
+            int derivedSeed)
         {
-            DebugLog.Log(ctx, $"ComposeMajorMasses: masses={masses.Length} (target {s.majorMassCountMin}-{s.majorMassCountMax}), minSep={s.massMinSeparation:0.##}, tries={s.massPlacementMaxTries}");
+            var overlap = Mathf.Clamp01(s.overlapAllowedPercent);
+            var requiredSep = Mathf.Max(0f, s.massMinSeparation) * (1f - overlap);
+            DebugLog.Log(ctx,
+                $"ComposeMajorMasses v2: masses={masses.Length} (target {s.majorMassCountMin}-{s.majorMassCountMax}), " +
+                $"minSep={s.massMinSeparation:0.##}, overlapAllowed={overlap * 100f:0.#}%, requiredSep={requiredSep:0.##}, tries={s.massPlacementMaxTries}, derivedSeed={derivedSeed}");
+            DebugLog.Log(ctx, $"  Mass overlapPairs(r_i+r_j): {overlapPairs}, minCenterDistXZ: {(float.IsInfinity(minCenterDist) ? -1f : minCenterDist):0.##}");
             for (int i = 0; i < masses.Length; i++)
             {
                 var m = masses[i];
@@ -321,10 +381,51 @@ namespace WorldGen.Steps
             }
 
             DebugLog.Log(ctx, $"  FloatingIslands: count={islands.Length}, rRange=({s.floatingIslandRadiusRange.x:0.#},{s.floatingIslandRadiusRange.y:0.#}), yRange=({s.floatingIslandHeightRange.x:0.#},{s.floatingIslandHeightRange.y:0.#}), boost={s.floatingIslandDensityBoost:0.#}");
+            DebugLog.Log(ctx, $"    FloatingIslands minCenterDistXZ: {(float.IsInfinity(islandMinCenterDist) ? -1f : islandMinCenterDist):0.##}");
             for (int i = 0; i < islands.Length; i++)
             {
                 var isl = islands[i];
                 DebugLog.Log(ctx, $"    Island[{i}]: center=({isl.center.x:0.#},{isl.center.y:0.#},{isl.center.z:0.#}) r={isl.radius:0.#}");
+            }
+        }
+
+        private static void ComputeOverlapStats(MajorMass[] masses, out int overlapPairs, out float minCenterDist)
+        {
+            overlapPairs = 0;
+            minCenterDist = float.PositiveInfinity;
+            if (masses == null || masses.Length < 2) return;
+
+            for (int i = 0; i < masses.Length; i++)
+            {
+                for (int j = i + 1; j < masses.Length; j++)
+                {
+                    var a = masses[i];
+                    var b = masses[j];
+                    var dx = a.center.x - b.center.x;
+                    var dz = a.center.z - b.center.z;
+                    var dist = Mathf.Sqrt(dx * dx + dz * dz);
+                    if (dist < minCenterDist) minCenterDist = dist;
+                    if (dist < (a.radius + b.radius)) overlapPairs++;
+                }
+            }
+        }
+
+        private static void ComputeIslandStats(FloatingIsland[] islands, out float minCenterDist)
+        {
+            minCenterDist = float.PositiveInfinity;
+            if (islands == null || islands.Length < 2) return;
+
+            for (int i = 0; i < islands.Length; i++)
+            {
+                for (int j = i + 1; j < islands.Length; j++)
+                {
+                    var a = islands[i];
+                    var b = islands[j];
+                    var dx = a.center.x - b.center.x;
+                    var dz = a.center.z - b.center.z;
+                    var dist = Mathf.Sqrt(dx * dx + dz * dz);
+                    if (dist < minCenterDist) minCenterDist = dist;
+                }
             }
         }
 
