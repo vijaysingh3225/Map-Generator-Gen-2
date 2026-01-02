@@ -150,10 +150,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   settings: {fileID: 11400000, guid: f5a01904482f1214991d2e77bbab3ad3, type: 2}
   steps:
-  - {fileID: 11400000, guid: 860f60f674c904643940e6ba9c96b810, type: 2}
+  - {fileID: 11400000, guid: 778f0e761608de542a4785c6d42ec9b7, type: 2}
+  - {fileID: 11400000, guid: 79f2de17a33ccfd4eb9a08fbde994c78, type: 2}
+  - {fileID: 11400000, guid: e934abe16fe12c04b8b1433677746ffc, type: 2}
   clearPreviousRuntimeRoot: 1
   autoGenerateOnPlay: 0
-  lastOutputPath: C:\Users\vijay\Map-Generator-Gen-2\WorldGenOutput\20260102_145211_seed12345
+  lastOutputPath: C:\Users\vijay\Map-Generator-Gen-2\WorldGenOutput\20260102_161031_seed12345
 --- !u!4 &91364020
 Transform:
   m_ObjectHideFlags: 0
@@ -266,7 +268,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
---- !u!1 &1454655093
+--- !u!1 &968332149
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -274,7 +276,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1454655094}
+  - component: {fileID: 968332150}
   m_Layer: 0
   m_Name: WorldGen_RuntimeRoot
   m_TagString: Untagged
@@ -282,13 +284,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &1454655094
+--- !u!4 &968332150
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1454655093}
+  m_GameObject: {fileID: 968332149}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -396,4 +398,4 @@ SceneRoots:
   - {fileID: 1940798896}
   - {fileID: 125407382}
   - {fileID: 91364020}
-  - {fileID: 1454655094}
+  - {fileID: 968332150}

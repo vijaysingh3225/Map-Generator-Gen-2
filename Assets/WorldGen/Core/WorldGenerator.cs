@@ -67,11 +67,10 @@ namespace WorldGen.Core
         private void ExportDensitySlicesIfEnabled(WorldContext ctx)
         {
             if (ctx.settings == null || !ctx.settings.exportDensitySlices) return;
+            if (!ctx.settings.exportEndOfRunDensitySlices) return;
             if (ctx.density == null) return;
 
-            var files = DebugSlices.ExportDensitySlices(ctx);
-            ctx.densitySliceFiles.Clear();
-            ctx.densitySliceFiles.AddRange(files);
+            DebugSlices.ExportDensitySlices(ctx);
         }
 
         private void PrepareRuntimeRoot(WorldContext ctx)
@@ -113,7 +112,10 @@ namespace WorldGen.Core
                 DebugLog.Log(ctx, $"Step {i + 1}/{steps.Count}: {name} (starting)");
 
                 var sw = Stopwatch.StartNew();
+                ctx.pendingStepNotes = null;
+                ctx.pendingStepCounters = null;
                 string notes = null;
+                Dictionary<string, int> counters = null;
                 try
                 {
                     step.Generate(settings, ctx);
@@ -127,7 +129,15 @@ namespace WorldGen.Core
                 finally
                 {
                     sw.Stop();
-                    ctx.stepReports.Add(new StepReport(name, sw.Elapsed.TotalMilliseconds, notes));
+                    if (!string.IsNullOrWhiteSpace(ctx.pendingStepNotes)) notes = ctx.pendingStepNotes;
+                    if (ctx.pendingStepCounters != null && ctx.pendingStepCounters.Count > 0) counters = ctx.pendingStepCounters;
+
+                    var r = new StepReport(name, sw.Elapsed.TotalMilliseconds, notes);
+                    r.counters = counters;
+                    ctx.stepReports.Add(r);
+
+                    ctx.pendingStepNotes = null;
+                    ctx.pendingStepCounters = null;
                     DebugLog.Log(ctx, $"Step {i + 1}/{steps.Count}: {name} (done) in {sw.Elapsed.TotalMilliseconds:0.00} ms");
                 }
             }

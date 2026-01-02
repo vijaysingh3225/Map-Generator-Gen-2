@@ -12,7 +12,7 @@ namespace WorldGen.Debug
             EnsureDensityStatsInternal(ctx);
         }
 
-        public static List<string> ExportDensitySlices(WorldContext ctx)
+        public static List<string> ExportDensitySlices(WorldContext ctx, string prefix = "")
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
             if (ctx.settings == null) throw new ArgumentNullException(nameof(ctx.settings));
@@ -20,6 +20,7 @@ namespace WorldGen.Debug
 
             EnsureDensityStatsInternal(ctx);
 
+            prefix ??= string.Empty;
             var exported = new List<string>();
             var vmin = ctx.densityStats.displayMin;
             var vmax = ctx.densityStats.displayMax;
@@ -39,10 +40,11 @@ namespace WorldGen.Debug
                 }
 
                 ctx.density.GetSliceXZ(y, xz);
-                var file = $"density_xz_y{y:D3}.png";
+                var file = $"{prefix}density_xz_y{y:D3}.png";
                 var path = Path.Combine(outDir, file);
                 DebugPng.ExportGrayscaleFloatSlice(path, xz, ctx.density.sizeX, ctx.density.sizeZ, vmin, vmax);
                 exported.Add(file);
+                ctx.densitySliceFiles.Add(file);
             }
 
             // XY slices at selected Z.
@@ -57,10 +59,11 @@ namespace WorldGen.Debug
                 }
 
                 ctx.density.GetSliceXY(z, xy);
-                var file = $"density_xy_z{z:D3}.png";
+                var file = $"{prefix}density_xy_z{z:D3}.png";
                 var path = Path.Combine(outDir, file);
                 DebugPng.ExportGrayscaleFloatSlice(path, xy, ctx.density.sizeX, ctx.density.sizeY, vmin, vmax);
                 exported.Add(file);
+                ctx.densitySliceFiles.Add(file);
             }
 
             // YZ slices at selected X.
@@ -75,10 +78,11 @@ namespace WorldGen.Debug
                 }
 
                 ctx.density.GetSliceYZ(x, yz);
-                var file = $"density_yz_x{x:D3}.png";
+                var file = $"{prefix}density_yz_x{x:D3}.png";
                 var path = Path.Combine(outDir, file);
                 DebugPng.ExportGrayscaleFloatSlice(path, yz, ctx.density.sizeY, ctx.density.sizeZ, vmin, vmax);
                 exported.Add(file);
+                ctx.densitySliceFiles.Add(file);
             }
 
             DebugLog.Log(ctx, $"Exported {exported.Count} density slice PNG(s) using display range [{vmin:0.###}..{vmax:0.###}]");

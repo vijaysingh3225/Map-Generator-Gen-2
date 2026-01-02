@@ -17,6 +17,10 @@ namespace WorldGen.Core
         public DensityFieldStats densityStats;
         public List<string> densitySliceFiles = new List<string>();
 
+        // Step -> generator handshake: a step can set these and the pipeline will attach them to that step's StepReport.
+        public string pendingStepNotes;
+        public Dictionary<string, int> pendingStepCounters;
+
         public Dictionary<string, object> blackboard = new Dictionary<string, object>();
         public List<StepReport> stepReports = new List<StepReport>();
         public StringBuilder runLog = new StringBuilder(1024);

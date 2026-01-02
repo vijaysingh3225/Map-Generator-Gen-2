@@ -15,6 +15,42 @@ MonoBehaviour:
   seed: 12345
   worldSize: {x: 256, y: 128, z: 256}
   voxelSize: 2
+  gridSize: {x: 128, y: 64, z: 128}
+  debugSliceYs: 000000001000000020000000300000003f000000
+  debugSliceXs: 00000000400000007f000000
+  debugSliceZs: 00000000400000007f000000
+  exportDensitySlices: 1
+  exportEndOfRunDensitySlices: 0
+  exportBeforeAfterSlices: 1
+  carveStrength: 1
+  tunnelCount: 2
+  tunnelRadius: 10
+  cavePocketCount: 6
+  cavePocketRadiusRange: {x: 6, y: 18}
+  archRadius: 18
+  archThickness: 12
+  archHeight: 22
+  carveSeedOffset: 1337
+  majorMassCountMin: 2
+  majorMassCountMax: 4
+  majorMassRadiusRange: {x: 45, y: 80}
+  majorMassHeightRange: {x: 40, y: 90}
+  majorMassEdgeFalloff: 20
+  massPlacementMaxTries: 64
+  massMinSeparation: 90
+  terraceBands: 6
+  terraceStrength: 10
+  terraceNoiseFreq: 0.01
+  terraceNoiseAmp: 6
+  overhangCount: 3
+  overhangRadiusRange: {x: 25, y: 55}
+  overhangHeightRange: {x: 35, y: 75}
+  overhangCarveThickness: 18
+  floatingIslandCount: 10
+  floatingIslandRadiusRange: {x: 10, y: 28}
+  floatingIslandHeightRange: {x: 70, y: 120}
+  floatingIslandDensityBoost: 25
+  composeSeedOffset: 9001
   outputRoot: WorldGenOutput
   runIdMode: 0
   logToConsole: 1
