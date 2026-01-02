@@ -12,6 +12,15 @@ namespace WorldGen.Core
         public Vector3 worldSize = new Vector3(256, 128, 256);
         public float voxelSize = 2f;
 
+        [Header("Density Grid")]
+        public Vector3Int gridSize = new Vector3Int(128, 64, 128);
+
+        [Header("Density Debug Slices")]
+        public int[] debugSliceYs = { 0, 16, 32, 48, 63 };
+        public int[] debugSliceXs = { 0, 64, 127 };
+        public int[] debugSliceZs = { 0, 64, 127 };
+        public bool exportDensitySlices = true;
+
         [Header("Debug Output")]
         [Tooltip("Created under the project root (next to Assets) when running in the editor.")]
         public string outputRoot = "WorldGenOutput";
@@ -21,7 +30,7 @@ namespace WorldGen.Core
 
         public string GetSettingsSummary()
         {
-            return $"seed={seed}, worldSize={worldSize}, voxelSize={voxelSize}, outputRoot='{outputRoot}', runIdMode={runIdMode}";
+            return $"seed={seed}, worldSize={worldSize}, voxelSize={voxelSize}, gridSize={gridSize}, outputRoot='{outputRoot}', runIdMode={runIdMode}";
         }
     }
 }

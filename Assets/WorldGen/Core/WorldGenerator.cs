@@ -49,6 +49,7 @@ namespace WorldGen.Core
                 DebugLog.Log(ctx, $"WorldGen run started. {settings.GetSettingsSummary()}");
                 PrepareRuntimeRoot(ctx);
                 RunSteps(ctx);
+                ExportDensitySlicesIfEnabled(ctx);
                 WriteOutputs(ctx);
                 ExportTestPngIfEnabled(ctx);
                 DebugLog.Log(ctx, "WorldGen run finished.");
@@ -61,6 +62,16 @@ namespace WorldGen.Core
                 // Swallow after logging so editor re-runs are painless; details are in report.txt.
                 return;
             }
+        }
+
+        private void ExportDensitySlicesIfEnabled(WorldContext ctx)
+        {
+            if (ctx.settings == null || !ctx.settings.exportDensitySlices) return;
+            if (ctx.density == null) return;
+
+            var files = DebugSlices.ExportDensitySlices(ctx);
+            ctx.densitySliceFiles.Clear();
+            ctx.densitySliceFiles.AddRange(files);
         }
 
         private void PrepareRuntimeRoot(WorldContext ctx)
@@ -142,6 +153,45 @@ namespace WorldGen.Core
             sb.AppendLine($"Settings: {ctx.settings.GetSettingsSummary()}");
             sb.AppendLine();
 
+            sb.AppendLine("Density:");
+            sb.AppendLine($"  gridSize: {ctx.settings.gridSize}");
+            if (ctx.density == null)
+            {
+                sb.AppendLine("  (no density field)");
+            }
+            else
+            {
+                if (!ctx.hasDensityStats)
+                {
+                    // Best effort: density may exist even if a step didn't compute stats.
+                    DebugSlices.EnsureDensityStats(ctx);
+                }
+
+                if (ctx.hasDensityStats)
+                {
+                    var ds = ctx.densityStats;
+                    sb.AppendLine($"  count: {ds.count}");
+                    sb.AppendLine($"  min/max: {ds.min:0.###} / {ds.max:0.###}");
+                    sb.AppendLine($"  mean/std: {ds.mean:0.###} / {ds.std:0.###}");
+                    sb.AppendLine($"  p01/p10/p50/p90/p99: {ds.p01:0.###} / {ds.p10:0.###} / {ds.p50:0.###} / {ds.p90:0.###} / {ds.p99:0.###}");
+                    sb.AppendLine($"  displayMin/displayMax: {ds.displayMin:0.###} / {ds.displayMax:0.###}");
+                }
+
+                if (ctx.densitySliceFiles != null && ctx.densitySliceFiles.Count > 0)
+                {
+                    sb.AppendLine("  exportedSlices:");
+                    for (int i = 0; i < ctx.densitySliceFiles.Count; i++)
+                    {
+                        sb.AppendLine($"    - {ctx.densitySliceFiles[i]}");
+                    }
+                }
+                else
+                {
+                    sb.AppendLine("  exportedSlices: (none)");
+                }
+            }
+
+            sb.AppendLine();
             sb.AppendLine("Steps:");
             if (ctx.stepReports.Count == 0)
             {

@@ -12,6 +12,11 @@ namespace WorldGen.Core
         public WorldGenSettings settings;
         public string outputPath;
 
+        public DensityField3D density;
+        public bool hasDensityStats;
+        public DensityFieldStats densityStats;
+        public List<string> densitySliceFiles = new List<string>();
+
         public Dictionary<string, object> blackboard = new Dictionary<string, object>();
         public List<StepReport> stepReports = new List<StepReport>();
         public StringBuilder runLog = new StringBuilder(1024);
